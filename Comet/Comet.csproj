@@ -111,7 +111,6 @@
   <ItemGroup>
     <Content Include="full.ico" />
     <None Include="Resources\full.ico" />
-    <None Include="Resources\1.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

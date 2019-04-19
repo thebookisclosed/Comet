@@ -90,7 +90,8 @@
             // 
             // LvwHandlers
             // 
-            this.LvwHandlers.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.LvwHandlers.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.LvwHandlers.CheckBoxes = true;
             this.LvwHandlers.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
@@ -120,8 +121,7 @@
             // 
             // GbxDesc
             // 
-            this.GbxDesc.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.GbxDesc.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.GbxDesc.Controls.Add(this.BtnAdvanced);
             this.GbxDesc.Controls.Add(this.BtnElevate);
@@ -168,7 +168,7 @@
             // 
             // LblSavingsNum
             // 
-            this.LblSavingsNum.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.LblSavingsNum.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.LblSavingsNum.Location = new System.Drawing.Point(195, 171);
             this.LblSavingsNum.Name = "LblSavingsNum";
             this.LblSavingsNum.Size = new System.Drawing.Size(144, 13);
@@ -177,6 +177,7 @@
             // 
             // LblSavings
             // 
+            this.LblSavings.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.LblSavings.AutoSize = true;
             this.LblSavings.Location = new System.Drawing.Point(8, 171);
             this.LblSavings.Name = "LblSavings";
