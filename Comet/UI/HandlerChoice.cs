@@ -14,7 +14,7 @@ namespace Comet.UI
         {
             InitializeComponent();
             Text += Preferences.SelectedDrive.Name;
-            Icon = Properties.Resources._1;
+            Icon = Properties.Resources.full;
             // Check if we are running as administrator, if yes, give the elevation button a shield
             using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
             {

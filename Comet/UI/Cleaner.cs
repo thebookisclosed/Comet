@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -13,20 +12,23 @@ namespace Comet.UI
         private Thread HandlerThread;
         private long TotalBytesDeleted;
         private int LastPercent;
+        private EmptyVolumeCacheCallBacks CallBacks;
+        private bool ProcessingHandlers;
 
         public Cleaner()
         {
             InitializeComponent();
-            Icon = Properties.Resources._1;
+            Icon = Properties.Resources.full;
             PtbLogo.Image = Icon.ToBitmap();
-            LblIntro.Text = string.Format(LblIntro.Text, Preferences.SelectedDrive.Name);
+            LblClnUp.Text += Preferences.SelectedDrive.Name;
             LblHandler.Text = Preferences.CleanupHandlers[0].DisplayName;
             HandlerThread = new Thread(new ThreadStart(() => {
                 Api.ReinstateHandlers(Preferences.CleanupHandlers, Preferences.SelectedDrive.Letter);
-                // Set up a callbacks for progress reporting
-                EmptyVolumeCacheCallBacks callBacks = new EmptyVolumeCacheCallBacks();
-                callBacks.PurgeProgressChanged += CallBacks_PurgeProgressChanged;
+                // Set up a callback for progress reporting
+                CallBacks = new EmptyVolumeCacheCallBacks();
+                CallBacks.PurgeProgressChanged += CallBacks_PurgeProgressChanged;
                 TotalBytesDeleted = 0;
+                ProcessingHandlers = true;
                 for (int i = 0; i < Preferences.CleanupHandlers.Count; i++)
                 {
                     CleanupHandler oHandler = Preferences.CleanupHandlers[i];
@@ -36,23 +38,25 @@ namespace Comet.UI
                         Invoke((MethodInvoker)delegate {
                             LblHandler.Text = oHandler.DisplayName;
                         });
-                    try
+                    int spaceResult = oHandler.Instance.GetSpaceUsed(out long newSpaceUsed, CallBacks);
+                    if (spaceResult == -2147467260) // -2147467260 = 0x80004004 = E_ABORT
+                        break;
+                    else if (spaceResult == 0)
                     {
-                        int purgeResult = oHandler.Instance.Purge(oHandler.BytesUsed, callBacks);
+                        Preferences.CurrentSelectionSavings = Preferences.CurrentSelectionSavings - oHandler.BytesUsed + newSpaceUsed;
+                        int purgeResult = oHandler.Instance.Purge(newSpaceUsed, CallBacks);
+                        if (purgeResult == -2147467260) // -2147467260 = 0x80004004 = E_ABORT
+                            break;
                         if (purgeResult != 0 && purgeResult != -2147287022) // -2147287022 == 0x80030012 == STG_E_NOMOREFILES
-                        {
                             MessageBox.Show("Purging " + oHandler.DisplayName + " failed with error 0x" + purgeResult.ToString("x8"), Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        }
                         if (oHandler.PostProcHint != null)
                             RunProcHint(oHandler.PostProcHint);
-                        try { oHandler.Instance.Deactivate(out uint dummy); } catch { }
-                        Marshal.FinalReleaseComObject(oHandler.Instance);
                     }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show(ex.ToString(), oHandler.DisplayName, MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    try { oHandler.Instance.Deactivate(out uint dummy); } catch { }
+                    Marshal.FinalReleaseComObject(oHandler.Instance);
                 }
+                ProcessingHandlers = false;
+                Api.DeactivateHandlers(Preferences.CleanupHandlers);
                 // A (stupid?) way to close the form once we are done cleaning
                 Invoke((MethodInvoker)delegate {
                     Close();
@@ -75,6 +79,10 @@ namespace Comet.UI
             if (e.Flags == CallbackFlags.LastNotification)
             {
                 TotalBytesDeleted += e.SpaceToFree;
+                LastPercent = (int)((double)TotalBytesDeleted / Preferences.CurrentSelectionSavings * 100);
+                Invoke((MethodInvoker)delegate {
+                    PrgClean.Value = LastPercent;
+                });
             }
         }
 
@@ -111,15 +119,23 @@ namespace Comet.UI
             p.StartInfo.FileName = fileName.Trim('"');
             if (ProcHint.Length > fileName.Length + 1)
                 p.StartInfo.Arguments = ProcHint.Substring(fileName.Length + 1);
-            p.Start();
-            p.WaitForExit();
+            try
+            {
+                p.Start();
+                p.WaitForExit();
+            }
+            catch { MessageBox.Show("Couldn't start the following process: " + ProcHint, Text, MessageBoxButtons.OK, MessageBoxIcon.Error); }
         }
 
         private void BtnCancel_Click(object sender, EventArgs e)
         {
-            HandlerThread.Abort();
-            Api.DeactivateHandlers(Preferences.CleanupHandlers);
-            Close();
+            if (HandlerThread.IsAlive && ProcessingHandlers)
+                CallBacks.Abort = true;
+            else
+            {
+                HandlerThread.Abort();
+                Close();
+            }
         }
     }
 }

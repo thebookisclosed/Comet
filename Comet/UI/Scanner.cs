@@ -14,7 +14,7 @@ namespace Comet.UI
         public Scanner()
         {
             InitializeComponent();
-            Icon = Properties.Resources._1;
+            Icon = Properties.Resources.full;
             PtbLogo.Image = Icon.ToBitmap();
             LblIntro.Text = string.Format(LblIntro.Text, Preferences.SelectedDrive.Name);
             HandlerThread = new Thread(new ThreadStart(() => {
@@ -39,17 +39,11 @@ namespace Comet.UI
                                     LblHandler.Text = evp.DisplayName;
                                     PrgScan.Value = i + 1;
                                 });
-                            long spaceUsed = 0;
-                            try { evp.Instance.GetSpaceUsed(out spaceUsed, callBacks); }
-                            catch
-                            {
-                                //MessageBox.Show(string.Format("Can't get used space for {0}, Flags {1}", evp.DisplayName, evp.Flags));
-                            }
-                            if (spaceUsed == 0 &&
+                            int spaceResult = evp.Instance.GetSpaceUsed(out long spaceUsed, callBacks);
+                            if (spaceResult != 0 || (spaceUsed == 0 &&
                                 ((evp.Flags & HandlerFlags.DontShowIfZero) == HandlerFlags.DontShowIfZero ||
-                                (evp.DataDrivenFlags & DDCFlags.DontShowIfZero) == DDCFlags.DontShowIfZero))
+                                (evp.DataDrivenFlags & DDCFlags.DontShowIfZero) == DDCFlags.DontShowIfZero)))
                             {
-                                //MessageBox.Show(string.Format("Discarding {0} {1}", evp.DisplayName, evp.BytesUsed));
                                 try { evp.Instance.Deactivate(out uint dummy); } catch { }
                                 Marshal.FinalReleaseComObject(evp.Instance);
                             }
@@ -57,13 +51,8 @@ namespace Comet.UI
                             {
                                 evp.BytesUsed = spaceUsed;
                                 Preferences.CleanupHandlers.Add(evp);
-                                //MessageBox.Show(string.Format("Adding {0} {1}", evp.DisplayName, evp.BytesUsed));
                             }
                         }
-                        //else
-                        //{
-                        //    MessageBox.Show(string.Format("{0} init ended with NULL", subKeyNames[i]));
-                        //}
                     }
                 }
                 Api.DeactivateHandlers(Preferences.CleanupHandlers);

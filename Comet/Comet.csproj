@@ -7,7 +7,7 @@
     <ProjectGuid>{986C377A-A9CE-4FD1-BA44-280146F5BAF6}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>Comet</RootNamespace>
-    <AssemblyName>Comet</AssemblyName>
+    <AssemblyName>mdiskclean</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -35,7 +35,7 @@
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>1.ico</ApplicationIcon>
+    <ApplicationIcon>full.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -109,7 +109,8 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="1.ico" />
+    <Content Include="full.ico" />
+    <None Include="Resources\full.ico" />
     <None Include="Resources\1.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

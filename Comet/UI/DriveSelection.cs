@@ -16,7 +16,7 @@ namespace Comet.UI
         public DriveSelection(List<DriveStrings> AvailableDrives)
         {
             InitializeComponent();
-            Icon = Properties.Resources._1;
+            Icon = Properties.Resources.full;
             foreach (DriveStrings ds in AvailableDrives)
                 CbbDrives.Items.Add(ds);
             CbbDrives.SelectedIndex = 0;

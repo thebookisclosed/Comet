@@ -21,7 +21,8 @@ namespace Comet
                 object evcInstance;
                 // This is needed due to Data Driven Cleaner {C0E13E61-0CC6-11d1-BBB6-0060978B2AE6} always throwing E_NOTIMPLEMENTED on <= Windows 7
                 try { evcInstance = Activator.CreateInstance(Type.GetTypeFromCLSID(evcProps.HandlerGuid)); }
-                catch {
+                catch
+                {
                     //System.Windows.Forms.MessageBox.Show(evcProps.HandlerGuid.ToString(), "Failed to load provider");
                     return null;
                 }
@@ -276,20 +277,26 @@ namespace Comet
     [ClassInterface(ClassInterfaceType.None)]
     public class EmptyVolumeCacheCallBacks : IEmptyVolumeCacheCallBack
     {
+        // -2147467260 = 0x80004004 = E_ABORT
         public int ScanProgress(long dwlSpaceUsed, uint dwFlags, IntPtr pcwszStatus)
         {
+            if (Abort)
+                return -2147467260;
             OnScanProgressChanged(new ScanProgressChangedEventArgs() { SpaceUsed = dwlSpaceUsed, Flags = (CallbackFlags)dwFlags });
             return 0;
         }
 
         public int PurgeProgress(long dwlSpaceFreed, long dwlSpaceToFree, uint dwFlags, IntPtr pcwszStatus)
         {
+            if (Abort)
+                return -2147467260;
             OnPurgeProgressChanged(new PurgeProgressChangedEventArgs() { SpaceFreed = dwlSpaceFreed, SpaceToFree = dwlSpaceToFree, Flags = (CallbackFlags)dwFlags });
             return 0;
         }
 
         public event EventHandler<ScanProgressChangedEventArgs> ScanProgressChanged;
 
+        [ComVisible(false)]
         protected virtual void OnScanProgressChanged(ScanProgressChangedEventArgs e)
         {
             ScanProgressChanged?.Invoke(this, e);
@@ -297,10 +304,14 @@ namespace Comet
 
         public event EventHandler<PurgeProgressChangedEventArgs> PurgeProgressChanged;
 
+        [ComVisible(false)]
         protected virtual void OnPurgeProgressChanged(PurgeProgressChangedEventArgs e)
         {
             PurgeProgressChanged?.Invoke(this, e);
         }
+
+        [ComVisible(false)]
+        public bool Abort = false;
     }
 
     public class ScanProgressChangedEventArgs : EventArgs
