@@ -11,9 +11,11 @@ namespace Comet.UI
     {
         private Thread HandlerThread;
         private long TotalBytesDeleted;
-        private int LastPercent;
+        private int LastTotalPercent;
         private EmptyVolumeCacheCallBacks CallBacks;
         private bool ProcessingHandlers;
+        private int LastHandlerPercent;
+        private CleanupHandler CurrentHandler;
 
         public Cleaner()
         {
@@ -21,7 +23,7 @@ namespace Comet.UI
             Icon = Properties.Resources.full;
             PtbLogo.Image = Icon.ToBitmap();
             LblClnUp.Text += Preferences.SelectedDrive.Name;
-            LblHandler.Text = Preferences.CleanupHandlers[0].DisplayName;
+            LblHandler.Text = $"{Preferences.CleanupHandlers[0].DisplayName} (Preparing...)";
             HandlerThread = new Thread(new ThreadStart(() => {
                 Api.ReinstateHandlers(Preferences.CleanupHandlers, Preferences.SelectedDrive.Letter);
                 // Set up a callback for progress reporting
@@ -31,29 +33,32 @@ namespace Comet.UI
                 ProcessingHandlers = true;
                 for (int i = 0; i < Preferences.CleanupHandlers.Count; i++)
                 {
-                    CleanupHandler oHandler = Preferences.CleanupHandlers[i];
-                    if (oHandler.PreProcHint != null)
-                        RunProcHint(oHandler.PreProcHint);
-                    if (LblHandler.IsHandleCreated)
+                    CurrentHandler = Preferences.CleanupHandlers[i];
+                    if (CurrentHandler.PreProcHint != null)
+                        RunProcHint(CurrentHandler.PreProcHint);
+                    LastHandlerPercent = 0;
+                    if (i > 0 && LblHandler.IsHandleCreated)
                         Invoke((MethodInvoker)delegate {
-                            LblHandler.Text = oHandler.DisplayName;
+                            LblHandler.Text = $"{CurrentHandler.DisplayName} (Preparing...)";
                         });
-                    int spaceResult = oHandler.Instance.GetSpaceUsed(out long newSpaceUsed, CallBacks);
-                    if (spaceResult == -2147467260) // -2147467260 = 0x80004004 = E_ABORT
-                        break;
-                    else if (spaceResult == 0)
+                    int spaceResult = CurrentHandler.Instance.GetSpaceUsed(out long newSpaceUsed, CallBacks);
+                    if (spaceResult >= 0)
                     {
-                        Preferences.CurrentSelectionSavings = Preferences.CurrentSelectionSavings - oHandler.BytesUsed + newSpaceUsed;
-                        int purgeResult = oHandler.Instance.Purge(newSpaceUsed, CallBacks);
+                        Preferences.CurrentSelectionSavings = Preferences.CurrentSelectionSavings - CurrentHandler.BytesUsed + newSpaceUsed;
+                        CurrentHandler.BytesUsed = newSpaceUsed;
+                        ReportLastHandlerPercent();
+                        int purgeResult = CurrentHandler.Instance.Purge(CurrentHandler.BytesUsed, CallBacks);
                         if (purgeResult == -2147467260) // -2147467260 = 0x80004004 = E_ABORT
                             break;
-                        if (purgeResult != 0 && purgeResult != -2147287022) // -2147287022 == 0x80030012 == STG_E_NOMOREFILES
-                            MessageBox.Show("Purging " + oHandler.DisplayName + " failed with error 0x" + purgeResult.ToString("x8"), Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        if (oHandler.PostProcHint != null)
-                            RunProcHint(oHandler.PostProcHint);
+                        if (purgeResult < 0 && purgeResult != -2147287022) // -2147287022 == 0x80030012 == STG_E_NOMOREFILES
+                            MessageBox.Show("Purging " + CurrentHandler.DisplayName + " failed with error 0x" + purgeResult.ToString("x8"), Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        if (CurrentHandler.PostProcHint != null)
+                            RunProcHint(CurrentHandler.PostProcHint);
                     }
-                    try { oHandler.Instance.Deactivate(out uint dummy); } catch { }
-                    Marshal.FinalReleaseComObject(oHandler.Instance);
+                    try { CurrentHandler.Instance.Deactivate(out uint dummy); } catch { }
+                    Marshal.FinalReleaseComObject(CurrentHandler.Instance);
+                    if (spaceResult < 0)
+                        break;
                 }
                 ProcessingHandlers = false;
                 Api.DeactivateHandlers(Preferences.CleanupHandlers);
@@ -68,26 +73,50 @@ namespace Comet.UI
 
         private void CallBacks_PurgeProgressChanged(object sender, PurgeProgressChangedEventArgs e)
         {
-            int cPerc = (int)((double)(TotalBytesDeleted + e.SpaceFreed) / Preferences.CurrentSelectionSavings * 100);
-            if (cPerc != LastPercent)
+            if (Preferences.CurrentSelectionSavings > 0)
             {
-                LastPercent = cPerc;
-                Invoke((MethodInvoker)delegate {
-                    PrgClean.Value = cPerc;
-                });
-            }
-            if (e.Flags == CallbackFlags.LastNotification)
-            {
-                TotalBytesDeleted += e.SpaceToFree;
-                LastPercent = (int)((double)TotalBytesDeleted / Preferences.CurrentSelectionSavings * 100);
-                Invoke((MethodInvoker)delegate {
-                    PrgClean.Value = LastPercent;
-                });
+                int ctPerc = (int)((double)(TotalBytesDeleted + e.SpaceFreed) / Preferences.CurrentSelectionSavings * 100);
+                if (ctPerc != LastTotalPercent)
+                {
+                    LastTotalPercent = ctPerc;
+                    ReportLastTotalPercent();
+                }
+                if (CurrentHandler.BytesUsed > 0)
+                {
+                    int hPerc = Preferences.CleanupHandlers.Count == 1 ? ctPerc : (int)((double)e.SpaceFreed / CurrentHandler.BytesUsed * 100);
+                    if (hPerc != LastHandlerPercent)
+                    {
+                        LastHandlerPercent = hPerc;
+                        ReportLastHandlerPercent();
+                    }
+                }
+                if (e.Flags == CallbackFlags.LastNotification)
+                {
+                    TotalBytesDeleted += CurrentHandler.BytesUsed;
+                    LastTotalPercent = (int)((double)TotalBytesDeleted / Preferences.CurrentSelectionSavings * 100);
+                    ReportLastTotalPercent();
+                }
             }
         }
 
+        private void ReportLastHandlerPercent()
+        {
+            if (LblHandler.IsHandleCreated)
+                Invoke((MethodInvoker)delegate {
+                    LblHandler.Text = $"{CurrentHandler.DisplayName} ({LastHandlerPercent}%)";
+                });
+        }
+
+        private void ReportLastTotalPercent()
+        {
+            if (PrgClean.IsHandleCreated)
+                Invoke((MethodInvoker)delegate {
+                    PrgClean.Value = LastTotalPercent;
+                });
+        }
+
         // Get effective filename of process to run for pre/post cleanup actions
-        private static string GetFirstParam(string line)
+        private string GetFirstParam(string line)
         {
             char prevChar = '\0';
             char nextChar = '\0';

@@ -40,7 +40,7 @@ namespace Comet.UI
                                     PrgScan.Value = i + 1;
                                 });
                             int spaceResult = evp.Instance.GetSpaceUsed(out long spaceUsed, callBacks);
-                            if (spaceResult != 0 || (spaceUsed == 0 &&
+                            if (spaceResult < 0 || (spaceUsed == 0 &&
                                 ((evp.Flags & HandlerFlags.DontShowIfZero) == HandlerFlags.DontShowIfZero ||
                                 (evp.DataDrivenFlags & DDCFlags.DontShowIfZero) == DDCFlags.DontShowIfZero)))
                             {
